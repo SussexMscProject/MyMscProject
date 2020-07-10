@@ -1,23 +1,32 @@
 #include "signal_generator.h"
+#include "Oscilliscope.h"
 #include "BLE.h"
 
+DigitalOut flag_ard(D7);
 AnalogOut aout(PA_4);
 Timer t;
 
 void Signal_Gen(){
+    flag_ard = 1;
     uint8_t wave = (poll()>>16)&0xFF;
+    printf("poll()>>24)&3)==%d\r\n",(poll()>>24)&3);
     //sawtooth
-    if(wave==0)
+    if(wave==0){
         SawTooth();
+    }
     //square
-    if(wave==1)
+    if(wave==1){
         Square();
+    }
     //sine wave
-    if(wave==2)
+    if(wave==2){
         Sine();
+    }
     //DC
-    if(wave==3)
-        DC();
+    if(wave==3){
+        DC();   
+    }
+    flag_ard = 0;
 }
 
 void Sine(){
