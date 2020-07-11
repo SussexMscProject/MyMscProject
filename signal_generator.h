@@ -9,6 +9,7 @@ void DC(void);
 void SawTooth(void);
 void Signal_Gen(void);
 void SawTooth(void);
+void update_arduino(void);
 
 
 

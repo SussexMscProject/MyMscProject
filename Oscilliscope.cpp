@@ -8,6 +8,24 @@ DigitalIn f2(D13);
 Serial TXRX(PD_5, PD_6); //TX, RX
 Timer t2;
 
+bool F2(){
+    return f2;
+}
+
+void F1(bool write){
+    if(write)
+        f1 = 1;
+    else
+        f1 = 0;
+}
+
+void B1(bool write){
+    if(write)
+        b1 = 1;
+    else
+        b1 = 0;
+}
+
 void init_arduino_comms(void){
     TXRX.baud(115200);
 }
@@ -30,7 +48,7 @@ void Read_Send_Signal(void){
                 t2.reset(); 
             }
         }
-        
+
         i = 0;
         f1 = 1;
         while(f2==0){}

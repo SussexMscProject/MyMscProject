@@ -2,9 +2,10 @@
 #include "Oscilliscope.h"
 #include "BLE.h"
 
-DigitalOut flag_ard(D7);
+DigitalOut flag_ard(D4);
 AnalogOut aout(PA_4);
 Timer t;
+uint32_t message_ref = 0;
 
 void Signal_Gen(){
     flag_ard = 1;
@@ -26,7 +27,44 @@ void Signal_Gen(){
     if(wave==3){
         DC();   
     }
+    printf("%d flag ard\r\n",flag_ard);
     flag_ard = 0;
+}
+
+void Square(void){
+    printf("%d\r\n",(poll()>>16)&0xFF);
+    
+    float i = 0;
+    float voltage = 1;
+    uint32_t message = (poll()>>16)&0xFF;
+    uint32_t message_ref;
+    uint8_t frequency = 1;
+    float _time = 1000/(frequency);
+    bool dir = 0;
+    t.start();
+    while(((message>>16)&0xFF)==1){
+        
+        if(i<=0)
+            dir = 0;
+        if(i>=100)
+            dir = 1;
+        if(dir)
+            i--;
+        if(!dir)
+            i++;
+
+        aout = float(dir*voltage/100);
+        message = poll();
+        if(message!=message_ref){
+            message_ref = message;
+            update_arduino();
+        }
+        while(t.read_us()<_time){}
+        t.reset();
+    }
+    t.stop();
+    printf("helo");
+    printf("%d\r\n",(poll()>>16)&0xFF);
 }
 
 void Sine(){
@@ -76,16 +114,21 @@ void Sine(){
     t.start();
 
     uint32_t message;
+    uint32_t message_ref;
     printf("%d\r\n",_time);
     while(loop){
 
         i+=6;       
         aout = float(sine_wave[i])/float(0xFF)*0.9*voltage/100;
         message = poll();
+        if(message!=message_ref){
+            message_ref = message;
+            update_arduino();
+        }
         frequency = message&0xFF;
         voltage = (message>>8)&0xFF;
 
-        _time = 1000/(frequency);
+        _time = 1000/frequency;
         if(((message>>16)&3)!=2)
             loop=0;
 
@@ -101,6 +144,7 @@ void SawTooth(void){
     float i = 0;
     float voltage = 1;
     uint32_t message;
+    uint32_t message_ref;
     uint8_t frequency = 1;
     float _time = 1000/(frequency);
     t.start();
@@ -111,6 +155,10 @@ void SawTooth(void){
         i+=0.01;
         aout = float(i*0.9*voltage/100);
         message = poll();
+        if(message!=message_ref){
+            message_ref = message;
+            update_arduino();
+        }
         frequency = message&0xFF;
         voltage = (message>>8)&0xFF;
         _time = 1000/(frequency);
@@ -121,36 +169,14 @@ void SawTooth(void){
     printf("ive changed\r\n");
 }
 
-void Square(void){
-    printf("%d\r\n",(poll()>>16)&0xFF);
-    float i = 0;
-    float voltage = 1;
-    uint32_t message;
-    uint8_t frequency = 1;
-    float _time = 1000/(frequency);
-    bool dir = 0;
-    t.start();
-    while(((poll()>>16)&0xFF)==1){
-        
-        if(i<=0)
-            dir = 0;
-        if(i>=100)
-            dir = 1;
-        if(dir)
-            i--;
-        if(!dir)
-            i++;
 
-        aout = float(dir*voltage/100);
-
-        message = poll();
-        frequency = message&0xFF;
-        voltage = (message>>8)&0xFF;
-        _time = 1000/(frequency);
-        while(t.read_us()<_time){}
-        t.reset();
-    }
-    t.stop();
+void update_arduino(){
+    F1(1);
+    while(((poll()>>16)&0xFF)&&(!F2())){printf("im here\r\n");}
+    Send_Byte(poll()&0xFF);       //time
+    Send_Byte((poll()>>8)&0xFF);  //volt
+    Send_Byte((poll()>>16)&0xFF); //wave
+    F1(0);
 }
 
 void DC(void){
@@ -158,11 +184,16 @@ void DC(void){
     float voltage = 1;
     float _time = 10000;
     uint32_t message;
+    uint32_t message_ref;
     t.start();
     while(((poll()>>16)&0xFF)==3){
         
         aout = float(voltage/100);
         message = poll();
+        if(message!=message_ref){
+            message_ref = message;
+            update_arduino();
+        }
         voltage = (message>>8)&0xFF;
         while(t.read_us()<_time){}
         t.reset();

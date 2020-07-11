@@ -45,7 +45,6 @@ void loop(void){
     print_wave();
   if(digitalRead(b3)==HIGH)
     Signal_gen();
-  Serial.println("im in the main loop");
 }
 
 void Signal_gen(){
@@ -55,12 +54,58 @@ void Signal_gen(){
   tft.fillScreen(BLACK);
   tft.setTextColor(WHITE);
   tft.println("Generating Signal");
+  uint8_t frequency;
+  uint8_t voltage;
+  digitalWrite(f2,HIGH);
+  uint8_t buffer_[3][2];
+  uint8_t i = 0;
   while(digitalRead(b3)==HIGH){
+    while((digitalRead(f1)==LOW)&&(digitalRead(b3)==HIGH)){
+
+    }
+    
+    if(Serial1.available()){
+      while(i<3){
+        buffer_[i][1] = Serial1.read();
+        i++;
+      }
+      i = 0;
+      Serial.println("    ");
+      Serial.println(buffer_[0][1]);
+      Serial.println(buffer_[1][1]);
+      Serial.println(buffer_[2][1]);
+    }
+
+    if(buffer_[2][1]!=buffer_[2][2]){
+      String wave;
+      String old_wave;
+      Serial.println("helo worlld");
+      switch(buffer_[3][1]){
+        case 0:
+          wave = "SawTooth";
+          break;
+        case 1:
+          wave = "Square";
+          break;
+        case 2:
+          wave = "Sine";
+          break;
+        case 3:
+          wave = "DC";
+          break;
+        buffer_[3][2]=buffer_[3][1];
+      }
+      tft.setCursor(0, 30);
+      tft.setTextColor(BLACK);  
+      tft.println(old_wave);
+      tft.setCursor(0, 30);
+      tft.setTextColor(WHITE);  
+      tft.println(wave);
+    }
   }
-  tft.setCursor(0, 0);
-  tft.setTextColor(BLACK);  
-  tft.println("Generating Signal:");
+  digitalWrite(f2,LOW);
 }
+
 uint8_t pixel_buffer[320][2];
 void print_wave(){
   uint8_t vmin = 255;
