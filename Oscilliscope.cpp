@@ -16,13 +16,12 @@ void Read_Send_Signal(void){
     b1 = 1;
     uint16_t i = 0;
     uint16_t buffersize = 318;
-    uint16_t _time = 1;
+    uint16_t _time = 15;
     char samples[buffersize];
     t2.start();
     printf("line 23 %d\r\n",((poll()>>24)&3)==2);
     while((((poll()>>24)&3)==2)){
-        if((poll()&0xFF)>1)
-            _time = 100*(poll()&0xFF);
+        _time = 15+poll()&0xFF;
         i = 0;
         while((((poll()>>24)&3)==2)&&(i<buffersize)){
             if(t2.read_us()>_time){
@@ -31,7 +30,7 @@ void Read_Send_Signal(void){
                 t2.reset(); 
             }
         }
-
+        
         i = 0;
         f1 = 1;
         while(f2==0){}
@@ -39,10 +38,9 @@ void Read_Send_Signal(void){
             TXRX.putc(samples[i]);
             i++;
         }
-        printf("%d    %d\r\n",poll()&0xFF,(poll()>>8)&0xFF);
+
         TXRX.putc(poll()&0xFF);
-        //printf("%d\r\n",(poll()>>8)&0xFF);
-        TXRX.putc(char((poll()>>8)&0xFF));
+        TXRX.putc((poll()>>8)&0xFF);
         f1 = 0;
         printf("poll()>>24)&3)==%d\r\n",(poll()>>24)&3);
     }
