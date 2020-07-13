@@ -111,15 +111,17 @@ void print_wave(){
   uint16_t i = 0;
   uint8_t threshold = 0;
   uint16_t crossed = 0;
-  uint8_t sample_split = 0;
+  uint16_t sample_split = 0;
   uint16_t volt_split = 1;
   uint16_t volt_split_ref = 1;
-  uint32_t frequency = 0;
-  uint32_t frequency_ref = 0;
-  uint16_t time_div = 0;
-  uint16_t time_div_ref = 0;
-  uint32_t volt_div_ref = 0;
-  uint32_t volt_div = 0;
+  float frequency = 0;
+  float frequency_ref = 0;
+  float time_div = 0;
+  float time_div_ref = 0;
+  char buff1[10];
+  char buff2[10];
+  float volt_div_ref = 0;
+  float volt_div = 0;
   tft.setTextSize(1);
   tft.fillScreen(BLACK);
   draw_text();
@@ -156,7 +158,7 @@ void print_wave(){
     }
     i = 0;
     
-    sample_split = pixel_buffer[318][2];
+    sample_split = pixel_buffer[318][2]+15;
     volt_split = pixel_buffer[319][2];
     Serial.println(pixel_buffer[318][2]);
     Serial.println(pixel_buffer[319][2]);
@@ -165,7 +167,7 @@ void print_wave(){
     
     i=1;
     while((i<318)&&(digitalRead(b1)==HIGH)){
-      tft.drawLine(i-1, 240-pixel_buffer[i-1][1]*0.7*volt_split/255,i , 240-pixel_buffer[i][1]*0.7*volt_split_ref/255,BLACK);
+      tft.drawLine(i-1, 240-pixel_buffer[i-1][1]*0.7*volt_split_ref/255,i , 240-pixel_buffer[i][1]*0.7*volt_split_ref/255,BLACK);
       i++;
     }
     draw_grid();
@@ -180,32 +182,32 @@ void print_wave(){
     
     if(volt_split!=volt_split_ref)volt_split_ref=volt_split;
     
-    time_div = 10*sample_split*32;
+    time_div = sample_split*32;
     if(time_div!=time_div_ref){
-      update_text(100, 0, time_div_ref, time_div);
+      update_text(100, 0, dtostrf(time_div_ref, 5,2, buff1), dtostrf(time_div, 5,2, buff2));
       time_div_ref = time_div;
     }
 
-    volt_div = (3300/6)*(100.0/float(volt_split));
+    volt_div = (3300.0/6.0)*(255.0/float(volt_split));
     if(volt_div!=volt_div_ref){
-      update_text(100, 10, volt_div_ref, volt_div);
+      update_text(100, 10, dtostrf(volt_div_ref, 5,2, buff1), dtostrf(volt_div, 5,2, buff2));
       volt_div_ref = volt_div;
     }
     
-    frequency = (1000000L*crossed)/(10L*sample_split*32);
+    frequency = (1000000.0/(float(sample_split)*318.0/float(crossed)));
     if(frequency!=frequency_ref){
-      update_text(100, 20, frequency_ref, frequency);
+      update_text(100, 20, dtostrf(frequency_ref, 5,2, buff1), dtostrf(frequency, 5,2, buff2));
       frequency_ref = frequency;
     }
     
     if(vmax!=vmax_ref){
-      update_text(100, 30, (long(vmax_ref)*1000L)/3300L, (long(vmax)*1000L)/3300L);
+      //update_text(100, 30, (long(vmax_ref)*1000L)/3300L, (long(vmax)*1000L)/3300L);
       vmax_ref = vmax;
     }
   }
 }
 
-void update_text(uint32_t x, uint32_t y, uint32_t ref, uint32_t val){
+void update_text(uint32_t x, uint32_t y, String ref, String val){
   
   tft.setCursor(x, y);
   tft.setTextColor(BLACK);

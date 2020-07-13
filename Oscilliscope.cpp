@@ -35,7 +35,7 @@ void Read_Send_Signal(void){
     uint16_t i = 0;
     uint16_t buffersize = 318;
     uint16_t _time = 15;
-    char samples[buffersize];
+    char samples[buffersize+2];
     t2.start();
     printf("line 23 %d\r\n",((poll()>>24)&3)==2);
     while((((poll()>>24)&3)==2)){
@@ -52,13 +52,12 @@ void Read_Send_Signal(void){
         i = 0;
         f1 = 1;
         while((f2==0)&&((poll()>>24)&3)){}
-        while((((poll()>>24)&3)==2)&&(i<buffersize)){
+        samples[318]=poll()&0xFF;
+        samples[319]=(poll()>>8)&0xFF;
+        while((((poll()>>24)&3)==2)&&(i<buffersize+2)){
             TXRX.putc(samples[i]);
             i++;
         }
-        
-        TXRX.putc(char(poll()&0xFF));
-        TXRX.putc(char((poll()>>8)&0xFF));
         f1 = 0;
     }
     b1 = 0;
