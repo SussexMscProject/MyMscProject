@@ -70,10 +70,6 @@ void Signal_gen(){
         i++;
       }
       i = 0;
-      Serial.println("    ");
-      Serial.println(buffer_[0][1]);
-      Serial.println(buffer_[1][1]);
-      Serial.println(buffer_[2][1]);
     }
 
     if(buffer_[2][1]!=buffer_[2][2]){
@@ -116,8 +112,8 @@ void print_wave(){
   uint8_t threshold = 0;
   uint16_t crossed = 0;
   uint8_t sample_split = 0;
-  uint16_t volt_split = 0;
-  uint16_t volt_split_ref = 0;
+  uint16_t volt_split = 1;
+  uint16_t volt_split_ref = 1;
   uint32_t frequency = 0;
   uint32_t frequency_ref = 0;
   uint16_t time_div = 0;
@@ -153,7 +149,7 @@ void print_wave(){
     threshold = (vmax-vmin)/2-vmin;
     crossed = 0;
     i = 0;
-    while((i<320)&&(digitalRead(b1)==HIGH)){
+    while((i<318)&&(digitalRead(b1)==HIGH)){
       if(((pixel_buffer[i][2])<threshold)&&((pixel_buffer[i-1][2])>threshold))
         crossed++;
       i++;
@@ -162,13 +158,22 @@ void print_wave(){
     
     sample_split = pixel_buffer[318][2];
     volt_split = pixel_buffer[319][2];
+    Serial.println(pixel_buffer[318][2]);
+    Serial.println(pixel_buffer[319][2]);
+    Serial.println("  ");
      
+    
+    i=1;
+    while((i<318)&&(digitalRead(b1)==HIGH)){
+      tft.drawLine(i-1, 240-pixel_buffer[i-1][1]*0.7*volt_split/255,i , 240-pixel_buffer[i][1]*0.7*volt_split_ref/255,BLACK);
+      i++;
+    }
     draw_grid();
     i=1;
     while((i<318)&&(digitalRead(b1)==HIGH)){
-      tft.drawFastVLine(i, 240-pixel_buffer[i][1]*0.7*(float(volt_split_ref)/100.0), 1, BLACK);
-      tft.drawFastVLine(i, 240-pixel_buffer[i][2]*0.7*(float(volt_split)/100.0), 1, YELLOW);
-      pixel_buffer[i][1] = pixel_buffer[i][2];
+      tft.drawLine(i-1, 240-pixel_buffer[i-1][2]*0.7*volt_split/255,i, 240-pixel_buffer[i][2]*0.7*volt_split/255,YELLOW);
+      pixel_buffer[i][1]=pixel_buffer[i][2];
+      volt_split_ref = volt_split;
       i++;
     }
     i = 0;

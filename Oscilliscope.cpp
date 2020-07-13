@@ -51,18 +51,16 @@ void Read_Send_Signal(void){
 
         i = 0;
         f1 = 1;
-        while(f2==0){}
+        while((f2==0)&&((poll()>>24)&3)){}
         while((((poll()>>24)&3)==2)&&(i<buffersize)){
             TXRX.putc(samples[i]);
             i++;
         }
-
-        TXRX.putc(poll()&0xFF);
-        TXRX.putc((poll()>>8)&0xFF);
+        
+        TXRX.putc(char(poll()&0xFF));
+        TXRX.putc(char((poll()>>8)&0xFF));
         f1 = 0;
-        printf("poll()>>24)&3)==%d\r\n",(poll()>>24)&3);
     }
-    printf("i escaped\r\n");
     b1 = 0;
     t2.stop();
     t2.reset();
