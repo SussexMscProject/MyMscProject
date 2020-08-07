@@ -1,4 +1,4 @@
-#include <MemoryFree.h>
+
 #include <Elegoo_GFX.h>    // Core graphics library
 #include <Elegoo_TFTLCD.h> // Hardware-specific library
 #define LCD_CS A3 // Chip Select goes to Analog 3
@@ -14,37 +14,276 @@
 #define MAGENTA 0xF81F
 #define YELLOW  0xFFE0
 #define WHITE   0xFFFF
+#define analogPin      13          // analog pin for measuring capacitor voltage
+#define chargePin      22         // pin to charge the capacitor - connected to one end of the charging resistor
+#define dischargePin   25         // pin to discharge the capacitor
+#define resistorValue  10000.0F   // change this to whatever resistor value you are using
 
 const int b1 = 36;
-const int b2 = 50;
+const int b2 = 23;
 const int b3 = 38;
+const int b4 = 24;
 const int f1 = 34;
 const int f2 = 30;
+
+#define vin 5.0
+
+long R1[] = {220,470,670,1000,10000,22000,47000,74000,100000,470000};
+int pins[] = {40,42,44,46,48,50,52,30,28,26};
+static const uint8_t analog_R = A12;
+int output_impedance = 740;
+
+/*
+#define k22 220 //40
+#define k47 470 //42
+#define k67 670  //44
+#define 1k 1000 //46
+#define 10k 10000 //48
+#define 22k 22000 //50
+#define 47k 47000 //52
+#define 74k 74000 //51
+#define 100k 100000 //49
+#define 470k 470000 //47
+*/
 
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 void setup(void) {
+  
+  //analog pin
+  pinMode(analog_R, INPUT);
+
+  //digital pins
+  for(int i = 0;i<10;i++){  
+    pinMode(pins[i], INPUT);
+  }
+  
   pinMode(b1, INPUT);
   pinMode(b2, INPUT);
   pinMode(b3, INPUT);
+  pinMode(b4, INPUT);
   pinMode(f1, INPUT);
   pinMode(f2, OUTPUT);
+  
   Serial.begin(115200);
   Serial1.begin(115200);
   Serial.println("boot");
+  
+  pinMode(chargePin, OUTPUT);     // set chargePin to output
+  digitalWrite(chargePin, LOW);  
+  
   tft.reset();
   tft.begin(37697);
   tft.setRotation(1);
 }
 
 const uint16_t width = 320;
-const uint8_t height = 240;
+const uint16_t height = 240;
 
 void loop(void){
   if(digitalRead(b1)==HIGH)
     print_wave();
+  if(digitalRead(b2)==HIGH)
+    ohmmeter();
   if(digitalRead(b3)==HIGH)
     Signal_gen();
+  if(digitalRead(b4)==HIGH)
+    capacitance();
+  tft.fillScreen(BLACK);
+}
+
+void capacitance(){
+  tft.fillScreen(BLACK);
+  unsigned long startTime;
+  unsigned long elapsedTime;
+  unsigned long Time;
+  float microFarads;                // floating point variable to preserve precision, make calculations
+  float nanoFarads;
+  long Farads;
+  while(digitalRead(b4)==HIGH){
+    digitalWrite(chargePin, HIGH);  // set chargePin HIGH and capacitor charging
+    startTime = millis();
+  
+    while(analogRead(analogPin) < 648){}
+  
+    elapsedTime= millis() - startTime;
+   // convert milliseconds to seconds ( 10^-3 ) and Farads to microFarads ( 10^6 ),  net 10^3 (1000) 
+    tft.setTextSize(2);
+    
+    tft.setTextColor(BLACK);
+    tft.setCursor(0, 30);  
+    tft.print(Time);  
+    tft.setTextColor(RED);
+    tft.setCursor(0, 30);  
+    tft.print(elapsedTime);     
+    tft.setTextColor(WHITE);       
+    tft.print(" mS");   
+    Time = elapsedTime;      
+  
+    microFarads = ((float)elapsedTime / resistorValue) * 1000;  
+    if (microFarads > 1){
+      tft.setCursor(0, 0);   
+      tft.setTextColor(BLACK);
+      tft.print(Farads); 
+      tft.setCursor(0, 0);   
+      tft.setTextColor(RED);
+      tft.print((long)microFarads);   
+      tft.setTextColor(WHITE);    
+      tft.println(" microFarads");   
+      Farads = (long)microFarads;
+    }
+    else{
+      tft.setCursor(0, 0);   
+      tft.setTextColor(BLACK);
+      tft.print(Farads); 
+      tft.setCursor(0, 0);   
+      tft.setTextColor(RED);
+      nanoFarads = microFarads * 1000.0;      
+      tft.print((long)nanoFarads);     
+      tft.setTextColor(WHITE);            
+      tft.println(" nanoFarads");    
+      Farads = (long)nanoFarads;   
+    }
+    
+    digitalWrite(chargePin, LOW);             
+    pinMode(dischargePin, OUTPUT);           
+    digitalWrite(dischargePin, LOW);          
+    while(analogRead(analogPin) > 0){         
+    }
+  
+    pinMode(dischargePin, INPUT);
+  }
+}
+
+void ohmmeter(){
+    unsigned long sensorValue[10];
+    int samples = 50;
+    uint16_t sensorVal_ref = 0;
+    uint16_t R1_ref = 0;
+    float vref = 0;
+    float cref;
+    while(digitalRead(b2)==HIGH){
+      int BestValue = 1024;
+      int pointer = 0;
+      for(int i = 0;i<10;i++){  
+        pinMode(pins[i], OUTPUT);
+        digitalWrite(pins[i],HIGH);
+        sensorValue[i]=0;
+        analogRead(analog_R);
+        for(int j = 0;j<samples;j++){
+          sensorValue[i]+=analogRead(analog_R);
+        }
+        sensorValue[i]/=samples;
+        digitalWrite(pins[i],LOW);
+        pinMode(pins[i], INPUT);
+        Serial.println(sensorValue[i]);
+  
+      }
+      for(int j = 0;j<10;j++){
+        if(abs(512-sensorValue[j])<BestValue){
+          BestValue = abs(512-sensorValue[j]);
+          pointer = j;
+        }
+      }
+      
+      tft.setTextSize(2);
+      
+      if(sensorValue[pointer]!=sensorVal_ref){
+        tft.fillScreen(BLACK);
+        tft.setTextColor(WHITE);
+        tft.setCursor(0, 0);  
+        tft.print("Sensor value:");
+        tft.setCursor(0, 20);
+        tft.setTextColor(BLACK);
+        tft.print(sensorVal_ref);
+        tft.setCursor(0, 20);
+        tft.setTextColor(RED);
+        tft.print(sensorValue[pointer]);
+        tft.setTextColor(WHITE);  
+        tft.print("/1023");
+        sensorVal_ref = sensorValue[pointer];
+      //}
+      //if(R1_ref!=R1[pointer]){
+        tft.setTextColor(WHITE);
+        tft.setCursor(0, 40);  
+        tft.print("Known Resistor value:");
+        tft.setCursor(0, 65);
+        tft.setTextColor(BLACK);
+        tft.print(R1_ref);
+        tft.setCursor(0, 65);
+        tft.setTextColor(RED);
+        tft.print(R1[pointer]);
+        tft.setTextColor(WHITE);  
+        tft.print(" ohms");
+        R1_ref=R1[pointer];
+        
+      //}
+      
+      float voltage=(sensorValue[pointer]*vin)/1024.0;
+      //if(vref!=voltage){ 
+        tft.setTextColor(WHITE);
+        tft.setCursor(0, 85);  
+        tft.println("voltage:");
+        tft.setCursor(0, 110);
+        tft.setTextColor(BLACK);
+        tft.println(vref);
+        tft.setCursor(0, 110);
+        tft.setTextColor(RED);  
+        tft.print(voltage);
+        tft.setTextColor(WHITE);  
+        tft.print(" Volts");
+        
+        tft.setCursor(0, 130);
+        tft.setTextColor(WHITE);  
+        tft.print("Resistor value is: ");
+        tft.setCursor(0, 155);
+        tft.setTextColor(BLACK);  
+        tft.print(String(resistance(vref,pointer)));
+        tft.setCursor(0, 155);
+        tft.setTextColor(RED);  
+        tft.print(String(resistance(voltage,pointer)));
+        tft.setTextColor(WHITE);  
+        tft.print(" ohms");
+        
+        vref = voltage;
+  
+      //}
+      
+      float current=voltage/resistance(voltage,pointer);
+      current*=1000.0;
+      //if(cref!=current){ 
+        tft.setTextColor(WHITE);
+        tft.setCursor(0, 175);  
+        tft.println("Current:");
+        tft.setCursor(0, 200);
+        tft.setTextColor(BLACK);
+        tft.println(cref);
+        tft.setCursor(0, 200);
+        tft.setTextColor(RED);  
+        tft.print(current);
+        tft.setTextColor(WHITE);  
+        tft.print(" mA");
+        
+        cref = current;
+  
+      }
+      delay(3000);
+    }
+}
+
+unsigned long resistance(float vout,int pointer){
+  return (R1[pointer]+output_impedance)*(1/(vin/vout-1));
+}
+
+void screen(String text,uint16_t color){
+    
+    tft.setTextColor(WHITE);  
+    tft.println("Resistor value is: ");
+    tft.setTextColor(RED);  
+    tft.print(text);
+    tft.setTextColor(WHITE);  
+    tft.println(" ohms");
+  
 }
 
 void Signal_gen(){
@@ -102,14 +341,14 @@ void Signal_gen(){
   digitalWrite(f2,LOW);
 }
 
-uint8_t pixel_buffer[320][2];
+uint16_t pixel_buffer[320][2];
 void print_wave(){
-  uint8_t vmin = 255;
-  uint8_t vmin_ref = 255;
-  uint8_t vmax = 0;
-  uint8_t vmax_ref;
+  uint16_t vmin = 255;
+  uint16_t vmin_ref = 255;
+  uint16_t vmax = 0;
+  uint16_t vmax_ref;
   uint16_t i = 0;
-  uint8_t threshold = 0;
+  uint16_t threshold = 0;
   uint16_t crossed = 0;
   uint16_t sample_split = 0;
   uint16_t volt_split = 1;
@@ -136,10 +375,16 @@ void print_wave(){
         i++;
       }
     }
+    //Serial.println(" ");
+    //Serial.println(pixel_buffer[318][2]);
+    //Serial.println(pixel_buffer[319][2]);
     digitalWrite(f2,LOW);
+    sample_split = pixel_buffer[318][2]+15;
+    volt_split = pixel_buffer[319][2];
     i = 0;
     vmin = 255;
     vmax = 0;
+    
     while((i<318)&&(digitalRead(b1)==HIGH)){
       if (vmax < pixel_buffer[i][2])
         vmax = pixel_buffer[i][2];
@@ -147,7 +392,7 @@ void print_wave(){
         vmin = pixel_buffer[i][2];
       i++;
     }
-
+    
     threshold = (vmax-vmin)/2-vmin;
     crossed = 0;
     i = 0;
@@ -158,22 +403,18 @@ void print_wave(){
     }
     i = 0;
     
-    sample_split = pixel_buffer[318][2]+15;
-    volt_split = pixel_buffer[319][2];
-    Serial.println(pixel_buffer[318][2]);
-    Serial.println(pixel_buffer[319][2]);
-    Serial.println("  ");
-     
+    //Serial.println(sample_split);
+    //Serial.println(volt_split);
     
     i=1;
     while((i<318)&&(digitalRead(b1)==HIGH)){
-      tft.drawLine(i-1, 240-pixel_buffer[i-1][1]*0.7*volt_split_ref/255,i , 240-pixel_buffer[i][1]*0.7*volt_split_ref/255,BLACK);
+      tft.drawLine(i-1, 240-(float(pixel_buffer[i-1][1])*0.7*volt_split_ref/255.0),i , 240-(float(pixel_buffer[i][1])*0.7*volt_split_ref/255.0),BLACK);
       i++;
     }
     draw_grid();
     i=1;
     while((i<318)&&(digitalRead(b1)==HIGH)){
-      tft.drawLine(i-1, 240-pixel_buffer[i-1][2]*0.7*volt_split/255,i, 240-pixel_buffer[i][2]*0.7*volt_split/255,YELLOW);
+      tft.drawLine(i-1, 240-(float(pixel_buffer[i-1][2])*0.7*volt_split/255.0),i, 240-(float(pixel_buffer[i][2])*0.7*volt_split/255.0),YELLOW);
       pixel_buffer[i][1]=pixel_buffer[i][2];
       volt_split_ref = volt_split;
       i++;
@@ -195,14 +436,22 @@ void print_wave(){
     }
     
     frequency = (1000000.0/(float(sample_split)*318.0/float(crossed)));
+    Serial.println(" ");
+    Serial.println(frequency);
+    Serial.println(float(sample_split));
+    Serial.println(crossed);
     if(frequency!=frequency_ref){
       update_text(100, 20, dtostrf(frequency_ref, 5,2, buff1), dtostrf(frequency, 5,2, buff2));
       frequency_ref = frequency;
     }
     
     if(vmax!=vmax_ref){
-      //update_text(100, 30, (long(vmax_ref)*1000L)/3300L, (long(vmax)*1000L)/3300L);
+      update_text(100, 30, dtostrf((long(vmax_ref*2)*1000L)/3300L, 5,2, buff2), dtostrf((long(vmax*2)*1000L)/3300L, 5,2, buff2));
       vmax_ref = vmax;
+    }
+    if(vmin!=vmin_ref){
+      update_text(100, 40, dtostrf((long(vmin_ref*2)*1000L)/3300L, 5,2, buff2), dtostrf((long(vmin*2)*1000L)/3300L, 5,2, buff2));
+      vmin_ref = vmin;
     }
   }
 }
@@ -231,10 +480,10 @@ void draw_text(){
   tft.println("Frequency/Hz");
   tft.setCursor(0, 30);  
   tft.setTextSize(1);
-  tft.println("Volt max");
+  tft.println("Volt max/mV");
   tft.setCursor(0, 40);  
   tft.setTextSize(1);
-  tft.println("Volt min");
+  tft.println("Volt min/mV");
 }
 
 
