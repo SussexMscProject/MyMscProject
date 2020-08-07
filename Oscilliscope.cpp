@@ -31,6 +31,10 @@ void init_arduino_comms(void){
 }
 
 void Read_Send_Signal(void){
+    IWDG_HandleTypeDef hiwdg;
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
+    hiwdg.Init.Reload = 1000; 
     b1 = 1;
     uint16_t i = 0;
     uint16_t buffersize = 318;
@@ -43,12 +47,11 @@ void Read_Send_Signal(void){
         i = 0;
         while((((poll()>>24)&3)==2)&&(i<buffersize)){
             if(t2.read_us()>_time){
-                samples[i] = char(ain.read()*255);
+                samples[i] = char(ain.read()*255*2);
                 i++;
                 t2.reset(); 
             }
         }
-
         i = 0;
         f1 = 1;
         while((f2==0)&&((poll()>>24)&3)){}
@@ -58,6 +61,7 @@ void Read_Send_Signal(void){
             TXRX.putc(samples[i]);
             i++;
         }
+        HAL_IWDG_Init(&hiwdg);
         f1 = 0;
     }
     b1 = 0;
