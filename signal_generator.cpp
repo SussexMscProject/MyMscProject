@@ -32,8 +32,10 @@ void Signal_Gen(){
 }
 
 void Square(void){
-    printf("%d\r\n",(poll()>>16)&0xFF);
-    
+    IWDG_HandleTypeDef hiwdg;
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
+    hiwdg.Init.Reload = 1000; 
     float i = 0;
     float voltage = 1;
     uint32_t message = (poll()>>16)&0xFF;
@@ -42,7 +44,9 @@ void Square(void){
     float _time = 1000/(frequency);
     bool dir = 0;
     t.start();
-    while(((message>>16)&0xFF)==1){
+    printf("square %x\r\n",(poll()));
+    while(((poll()>>16)&0xFF)==1){
+        
         
         if(i<=0)
             dir = 0;
@@ -53,21 +57,28 @@ void Square(void){
         if(!dir)
             i++;
 
-        aout = float(dir*voltage/100);
+        //printf("aout %f\r\n",voltage);
+        aout = float(dir*voltage/255);
         message = poll();
         if(message!=message_ref){
             message_ref = message;
-            update_arduino();
+            frequency = message&0xFF;
+            voltage = (message>>8)&0xFF;
+            _time = 1000/frequency;
         }
+        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
         t.reset();
     }
     t.stop();
-    printf("helo");
-    printf("%d\r\n",(poll()>>16)&0xFF);
+    printf("out %d\r\n",(poll()>>16)&0xFF);
 }
 
 void Sine(){
+    IWDG_HandleTypeDef hiwdg;
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
+    hiwdg.Init.Reload = 1000; 
 
     uint8_t  sine_wave[256] = {
     0x80, 0x83, 0x86, 0x89, 0x8C, 0x90, 0x93, 0x96,
@@ -115,15 +126,15 @@ void Sine(){
 
     uint32_t message;
     uint32_t message_ref;
-    printf("%d\r\n",_time);
+    printf("sine %f\r\n",_time);
     while(loop){
 
         i+=6;       
-        aout = float(sine_wave[i])/float(0xFF)*0.9*voltage/100;
+        aout = float(sine_wave[i])/float(0xFF)*0.9*voltage/255;
         message = poll();
         if(message!=message_ref){
             message_ref = message;
-            update_arduino();
+            //update_arduino();
         }
         frequency = message&0xFF;
         voltage = (message>>8)&0xFF;
@@ -131,7 +142,7 @@ void Sine(){
         _time = 1000/frequency;
         if(((message>>16)&3)!=2)
             loop=0;
-
+        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
         t.reset();
     }
@@ -140,7 +151,11 @@ void Sine(){
 }
 
 void SawTooth(void){
-    printf("%d\r\n",(poll()>>16)&0xFF);
+    IWDG_HandleTypeDef hiwdg;
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
+    hiwdg.Init.Reload = 1000; 
+    printf("%x\r\n",(poll()>>16));
     float i = 0;
     float voltage = 1;
     uint32_t message;
@@ -148,20 +163,22 @@ void SawTooth(void){
     uint8_t frequency = 1;
     float _time = 1000/(frequency);
     t.start();
+    printf("saw %x\r\n",(poll()));
     while(((poll()>>16)&0xFF)==0){
         if(i>=1)
             i=0;
         //printf("%f   %f\r\n",i,float(i*0.8*voltage/100));
         i+=0.01;
-        aout = float(i*0.9*voltage/100);
+        aout = float(i*0.9*voltage/255);
         message = poll();
         if(message!=message_ref){
             message_ref = message;
-            update_arduino();
+            //update_arduino();
         }
         frequency = message&0xFF;
         voltage = (message>>8)&0xFF;
         _time = 1000/(frequency);
+        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
         t.reset();
     }
@@ -171,36 +188,41 @@ void SawTooth(void){
 
 
 void update_arduino(){
-    F1(1);
+    //F1(1);
     while(((poll()>>16)&0xFF)&&(!F2())){printf("im here\r\n");}
-    Send_Byte(poll()&0xFF);       //time
-    Send_Byte((poll()>>8)&0xFF);  //volt
-    Send_Byte((poll()>>16)&0xFF); //wave
-    F1(0);
+    //Send_Byte(poll()&0xFF);       //time
+    //Send_Byte((poll()>>8)&0xFF);  //volt
+    //Send_Byte((poll()>>16)&0xFF); //wave
+    //F1(0);
 }
 
 void DC(void){
+    IWDG_HandleTypeDef hiwdg;
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
+    hiwdg.Init.Reload = 1000; 
     printf("%d\r\n",(poll()>>16)&0xFF);
     float voltage = 1;
     float _time = 10000;
     uint32_t message;
     uint32_t message_ref;
     t.start();
+    printf("dc %x\r\n",(poll()));
     while(((poll()>>16)&0xFF)==3){
         
-        aout = float(voltage/100);
+        aout = float(voltage/255);
         message = poll();
         if(message!=message_ref){
             message_ref = message;
-            update_arduino();
+            //update_arduino();
         }
         voltage = (message>>8)&0xFF;
+        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
         t.reset();
     }
     t.stop();
 }
-
 
 
 
