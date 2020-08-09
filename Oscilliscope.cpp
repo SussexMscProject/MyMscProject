@@ -47,7 +47,7 @@ void Read_Send_Signal(void){
         i = 0;
         while((((poll()>>24)&3)==2)&&(i<buffersize)){
             if(t2.read_us()>_time){
-                samples[i] = char(ain.read()*255*2);
+                samples[i] = char(ain.read()*255);
                 i++;
                 t2.reset(); 
             }

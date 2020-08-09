@@ -5,6 +5,7 @@
 DigitalOut flag_ard(D4);
 AnalogOut aout(PA_4);
 Timer t;
+Timer wd;
 uint32_t message_ref = 0;
 
 void Signal_Gen(){
@@ -35,17 +36,18 @@ void Square(void){
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
-    hiwdg.Init.Reload = 1000; 
+    hiwdg.Init.Reload = 375;
+    wd.start(); 
     float i = 0;
     float voltage = 1;
-    uint32_t message = (poll()>>16)&0xFF;
+    uint32_t message = poll();
     uint32_t message_ref;
     uint8_t frequency = 1;
     float _time = 1000/(frequency);
     bool dir = 0;
     t.start();
     printf("square %x\r\n",(poll()));
-    while(((poll()>>16)&0xFF)==1){
+    while(((message>>16)&0xFF)==1){
         
         
         if(i<=0)
@@ -56,20 +58,25 @@ void Square(void){
             i--;
         if(!dir)
             i++;
-
-        //printf("aout %f\r\n",voltage);
+        //printf("%f\r\n",float(dir*voltage/255));
         aout = float(dir*voltage/255);
         message = poll();
         if(message!=message_ref){
             message_ref = message;
+            printf("%d",frequency);
             frequency = message&0xFF;
             voltage = (message>>8)&0xFF;
             _time = 1000/frequency;
         }
-        HAL_IWDG_Init(&hiwdg);
-        while(t.read_us()<_time){}
+        if(wd.read_ms()>2000){
+            HAL_IWDG_Init(&hiwdg);
+            wd.reset();
+        }
+        while(t.read_us()<_time){message = poll();}
         t.reset();
     }
+    printf("im out im free look at me\r\n");
+    wd.stop();
     t.stop();
     printf("out %d\r\n",(poll()>>16)&0xFF);
 }
@@ -78,7 +85,7 @@ void Sine(){
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
-    hiwdg.Init.Reload = 1000; 
+    hiwdg.Init.Reload = 375; 
 
     uint8_t  sine_wave[256] = {
     0x80, 0x83, 0x86, 0x89, 0x8C, 0x90, 0x93, 0x96,
@@ -123,7 +130,7 @@ void Sine(){
     float _time = 1000/(frequency);
     float output;
     t.start();
-
+    wd.start();
     uint32_t message;
     uint32_t message_ref;
     printf("sine %f\r\n",_time);
@@ -142,10 +149,14 @@ void Sine(){
         _time = 1000/frequency;
         if(((message>>16)&3)!=2)
             loop=0;
-        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
+        if(wd.read_ms()>2000){
+            HAL_IWDG_Init(&hiwdg);
+            wd.reset();
+        }
         t.reset();
     }
+    wd.stop();
     t.reset();
     t.stop();
 }
@@ -154,7 +165,7 @@ void SawTooth(void){
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
-    hiwdg.Init.Reload = 1000; 
+    hiwdg.Init.Reload = 375; 
     printf("%x\r\n",(poll()>>16));
     float i = 0;
     float voltage = 1;
@@ -163,6 +174,7 @@ void SawTooth(void){
     uint8_t frequency = 1;
     float _time = 1000/(frequency);
     t.start();
+    wd.start();
     printf("saw %x\r\n",(poll()));
     while(((poll()>>16)&0xFF)==0){
         if(i>=1)
@@ -178,10 +190,14 @@ void SawTooth(void){
         frequency = message&0xFF;
         voltage = (message>>8)&0xFF;
         _time = 1000/(frequency);
-        HAL_IWDG_Init(&hiwdg);
         while(t.read_us()<_time){}
+        if(wd.read_ms()>2000){
+            HAL_IWDG_Init(&hiwdg);
+            wd.reset();
+        }
         t.reset();
     }
+    wd.reset();
     t.stop();
     printf("ive changed\r\n");
 }
@@ -200,14 +216,14 @@ void DC(void){
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
-    hiwdg.Init.Reload = 1000; 
+    hiwdg.Init.Reload = 375; 
     printf("%d\r\n",(poll()>>16)&0xFF);
     float voltage = 1;
     float _time = 10000;
     uint32_t message;
     uint32_t message_ref;
     t.start();
-    printf("dc %x\r\n",(poll()));
+    wd.start();
     while(((poll()>>16)&0xFF)==3){
         
         aout = float(voltage/255);
@@ -217,10 +233,14 @@ void DC(void){
             //update_arduino();
         }
         voltage = (message>>8)&0xFF;
-        HAL_IWDG_Init(&hiwdg);
+        if(wd.read_ms()>2000){
+            HAL_IWDG_Init(&hiwdg);
+            wd.reset();
+        }
         while(t.read_us()<_time){}
         t.reset();
     }
+    wd.stop();
     t.stop();
 }
 
