@@ -9,6 +9,8 @@ Timer wd;
 uint32_t message_ref = 0;
 
 void Signal_Gen(){
+    //function that chooses what wave function to enter
+    //send flag for arduino to know a signal is being generated
     flag_ard = 1;
     uint8_t wave = (poll()>>16)&0xFF;
     printf("poll()>>24)&3)==%d\r\n",(poll()>>24)&3);
@@ -33,11 +35,14 @@ void Signal_Gen(){
 }
 
 void Square(void){
+    //set watch dog
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
     hiwdg.Init.Reload = 375;
+    //start watchdog timer
     wd.start(); 
+    //define variables to this scope
     float i = 0;
     float voltage = 1;
     uint32_t message = poll();
@@ -45,48 +50,59 @@ void Square(void){
     uint8_t frequency = 1;
     float _time = 1000/(frequency);
     bool dir = 0;
+    //start timer
     t.start();
+    //debug
     printf("square %x\r\n",(poll()));
     while(((message>>16)&0xFF)==1){
         
-        
+        //if dir = 1 voltage is high else voltage is low
         if(i<=0)
             dir = 0;
         if(i>=100)
             dir = 1;
+        //repeat 100 times before switching high or low
         if(dir)
             i--;
         if(!dir)
             i++;
-        //printf("%f\r\n",float(dir*voltage/255));
+        //aout is an out put between 0 and 1
         aout = float(dir*voltage/255);
+        //check for bluetooth change
         message = poll();
+        //if new bluetooth message came through enter if statement
         if(message!=message_ref){
+            //unpack integer into bytes
             message_ref = message;
-            printf("%d",frequency);
             frequency = message&0xFF;
             voltage = (message>>8)&0xFF;
             _time = 1000/frequency;
         }
         if(wd.read_ms()>2000){
+            //reset watch dog and timer
             HAL_IWDG_Init(&hiwdg);
             wd.reset();
         }
-        while(t.read_us()<_time){message = poll();}
+        //spin to keep time
+        while(t.read_us()<_time){}
+        //reset timer
         t.reset();
     }
-    printf("im out im free look at me\r\n");
+    //stop timers
     wd.stop();
     t.stop();
+    //debug
     printf("out %d\r\n",(poll()>>16)&0xFF);
 }
 
 void Sine(){
+    //watchdog
     IWDG_HandleTypeDef hiwdg;
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = IWDG_PRESCALER_256; 
     hiwdg.Init.Reload = 375; 
 
+    //sine table
     uint8_t  sine_wave[256] = {
     0x80, 0x83, 0x86, 0x89, 0x8C, 0x90, 0x93, 0x96,
     0x99, 0x9C, 0x9F, 0xA2, 0xA5, 0xA8, 0xAB, 0xAE,
